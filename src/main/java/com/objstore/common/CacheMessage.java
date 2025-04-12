@@ -2,73 +2,98 @@ package com.objstore.common;
 
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.MessageCodec;
-import io.vertx.core.json.JsonObject;
 import java.io.Serializable;
 
 public class CacheMessage implements Serializable {
+
     public String operation;
     public String key;
     public Serializable value;
 
-    // No-arg constructor required for serialization
-    public CacheMessage() {}
-
-    // Register codec with Vertx
-    public static void registerCodec(io.vertx.core.Vertx vertx) {
-        vertx.eventBus().registerDefaultCodec(
-            CacheMessage.class,
-            new CacheMessageCodec()
-        );
+    public CacheMessage() {
+        // Default constructor required for serialization
     }
 
-    // Inner codec class for CacheMessage
-    static class CacheMessageCodec implements MessageCodec<CacheMessage, CacheMessage> {
+    public static void registerCodec(io.vertx.core.Vertx vertx) {
+        // Register codec only once
+        try {
+            vertx.eventBus().registerDefaultCodec(
+                CacheMessage.class,
+                new CacheMessageCodec()
+            );
+            System.out.println("Registered CacheMessage codec");
+        } catch (IllegalStateException e) {
+            // Codec might already be registered
+            System.out.println("CacheMessage codec already registered");
+        }
+    }
+
+    // Custom codec to properly serialize/deserialize CacheMessage objects over the event bus
+    public static class CacheMessageCodec implements MessageCodec<CacheMessage, CacheMessage> {
+
         @Override
         public void encodeToWire(Buffer buffer, CacheMessage message) {
-            JsonObject json = new JsonObject();
-            json.put("operation", message.operation);
-            json.put("key", message.key);
-            if (message.value != null) {
-                if (message.value instanceof String) {
-                    json.put("value", (String)message.value);
-                } else {
-                    // For other serializable objects, you'd need proper serialization
-                    json.put("value", message.value.toString());
-                }
-            }
+            // Write operation
+            Buffer opBuffer = Buffer.buffer(message.operation);
+            buffer.appendInt(opBuffer.length());
+            buffer.appendBuffer(opBuffer);
 
-            String jsonString = json.encode();
-            buffer.appendInt(jsonString.length());
-            buffer.appendString(jsonString);
+            // Write key
+            Buffer keyBuffer = Buffer.buffer(message.key);
+            buffer.appendInt(keyBuffer.length());
+            buffer.appendBuffer(keyBuffer);
+
+            // Write value (if present)
+            if (message.value != null) {
+                String valueStr = message.value.toString();
+                Buffer valueBuffer = Buffer.buffer(valueStr);
+                buffer.appendInt(valueBuffer.length());
+                buffer.appendBuffer(valueBuffer);
+            } else {
+                buffer.appendInt(0);
+            }
         }
 
         @Override
         public CacheMessage decodeFromWire(int pos, Buffer buffer) {
-            int length = buffer.getInt(pos);
-            String jsonStr = buffer.getString(pos + 4, pos + 4 + length);
-            JsonObject json = new JsonObject(jsonStr);
-
             CacheMessage message = new CacheMessage();
-            message.operation = json.getString("operation");
-            message.key = json.getString("key");
-            message.value = json.getString("value");
+
+            // Read operation
+            int opLength = buffer.getInt(pos);
+            pos += 4;
+            message.operation = buffer.getString(pos, pos + opLength);
+            pos += opLength;
+
+            // Read key
+            int keyLength = buffer.getInt(pos);
+            pos += 4;
+            message.key = buffer.getString(pos, pos + keyLength);
+            pos += keyLength;
+
+            // Read value
+            int valueLength = buffer.getInt(pos);
+            pos += 4;
+            if (valueLength > 0) {
+                message.value = buffer.getString(pos, pos + valueLength);
+            }
 
             return message;
         }
 
         @Override
         public CacheMessage transform(CacheMessage message) {
+            // No transformation needed
             return message;
         }
 
         @Override
         public String name() {
-            return "cacheMessage";
+            return "cachemessage";
         }
 
         @Override
         public byte systemCodecID() {
-            return -1;
+            return -1; // Always -1 for user-defined codecs
         }
     }
 }

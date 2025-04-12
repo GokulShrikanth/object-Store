@@ -4,14 +4,14 @@
 echo "Compiling project..."
 mvn clean package
 
-# Run the master (in background)
+# Run the master (in background) in clustered mode
 echo "Starting master..."
 java -cp target/object-store-1.0-SNAPSHOT.jar com.objstore.MainApp &
 MASTER_PID=$!
 
 # Give master time to fully start
-echo "Waiting for master to initialize (15 seconds)..."
-sleep 15  # Increased to ensure full initialization
+echo "Waiting for master to initialize (30 seconds)..."
+sleep 30  # Increased to ensure cluster forms properly
 
 # Function to generate large values with proper escaping
 generate_large_json() {
@@ -24,11 +24,14 @@ generate_large_json() {
 # Try a small test request first to validate connectivity
 echo "Sending test PUT request..."
 java -cp target/object-store-1.0-SNAPSHOT.jar \
-  io.vertx.core.Launcher run com.objstore.cli.CacheClientVerticle \
+  io.vertx.core.Launcher run \
+  --cluster \
+  --cluster-host localhost \
+  com.objstore.cli.CacheClientVerticle \
   -Dcmd=put -Dkey=test -Dvalue="test-value"
 
 # Wait to see if the test was successful
-sleep 2
+sleep 5
 
 # Insert large objects to fill memory
 for i in {1..5}
@@ -39,10 +42,13 @@ do
 
   echo "Sending PUT request for item$i..."
   java -cp target/object-store-1.0-SNAPSHOT.jar \
-    io.vertx.core.Launcher run com.objstore.cli.CacheClientVerticle \
+    io.vertx.core.Launcher run \
+    --cluster \
+    --cluster-host localhost \
+    com.objstore.cli.CacheClientVerticle \
     -Dcmd=put -Dkey=item$i -Dvalue="@/tmp/large_value_$i.json"
 
-  sleep 2
+  sleep 3
 done
 
 # Show running Java processes (should include spawned slaves)

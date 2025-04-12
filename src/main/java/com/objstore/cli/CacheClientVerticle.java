@@ -7,6 +7,8 @@ public class CacheClientVerticle extends AbstractVerticle {
 
     @Override
     public void start() {
+        CacheMessage.registerCodec(vertx);
+
         String cmd = System.getProperty("cmd");
         String key = System.getProperty("key");
         String valueStr = System.getProperty("value", "");
