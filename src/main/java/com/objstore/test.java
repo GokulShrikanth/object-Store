@@ -3,12 +3,14 @@ package com.objstore;
 import com.objstore.common.CacheMessage;
 import io.vertx.core.Vertx;
 import io.vertx.core.VertxOptions;
+import io.vertx.core.VertxBuilder;
 
 public class test {
     public static void main(String[] args) {
         // Configure Vert.x to use clustering
         VertxOptions options = new VertxOptions()
             .setClusterManager(new io.vertx.spi.cluster.hazelcast.HazelcastClusterManager());
+
 
         // Configure event bus for clustering
         options.getEventBusOptions().setHost("localhost");

@@ -4,22 +4,26 @@ import io.vertx.core.Vertx;
 import io.vertx.core.VertxOptions;
 import io.vertx.core.DeploymentOptions;
 import io.vertx.core.json.JsonObject;
+import io.vertx.spi.cluster.hazelcast.HazelcastClusterManager;
 
 public class MainApp {
     public static void main(String[] args) {
-        // Configure Vert.x to use clustering
-        VertxOptions options = new VertxOptions()
-            .setClusterManager(new io.vertx.spi.cluster.hazelcast.HazelcastClusterManager());
-        options.getEventBusOptions().setHost("localhost");
-
-        // Register message codec
-        io.vertx.core.eventbus.EventBusOptions ebOptions = options.getEventBusOptions();
-        ebOptions.setClusterPublicHost("localhost");
-        options.setEventBusOptions(ebOptions);
-
         System.out.println("Starting Vert.x in clustered mode...");
 
-        io.vertx.core.Vertx.clusteredVertx(options, res -> {
+        // Create a Hazelcast cluster manager
+        HazelcastClusterManager clusterManager = new HazelcastClusterManager();
+
+        // Configure Vert.x options
+        VertxOptions options = new VertxOptions()
+            .setClusterManager(clusterManager);
+
+        // Configure event bus options
+        options.getEventBusOptions()
+            .setHost("localhost")
+            .setClusterPublicHost("localhost");
+
+        // Create clustered Vert.x instance
+        Vertx.clusteredVertx(options, res -> {
             if (res.succeeded()) {
                 Vertx vertx = res.result();
                 // Register codec
@@ -46,8 +50,6 @@ public class MainApp {
                     vertx.deployVerticle("com.objstore.master.MasterVerticle", ar -> {
                         if (ar.succeeded()) {
                             System.out.println("Master deployed successfully");
-                            // Deploy the first slave
-                            //deployInitialSlave(vertx);
                         } else {
                             System.err.println("Failed to deploy master: " + ar.cause());
                         }
@@ -57,5 +59,12 @@ public class MainApp {
                 System.err.println("Failed to create clustered Vert.x: " + res.cause());
             }
         });
+
+        // Keep the main thread from exiting
+        try {
+            Thread.currentThread().join();
+        } catch (InterruptedException e) {
+            System.err.println("Main thread interrupted: " + e.getMessage());
+        }
     }
 }
