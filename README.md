@@ -26,7 +26,6 @@ This project is a scalable Java-based **Object Store** using [Vert.x](https://ve
 
 ## Build the Project
 
-```bash
 mvn clean package
 
 Run the Master
