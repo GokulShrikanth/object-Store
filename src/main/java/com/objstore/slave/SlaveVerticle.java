@@ -48,7 +48,7 @@ public class SlaveVerticle extends AbstractVerticle {
 
             ProcessBuilder pb = new ProcessBuilder(
                     "java",
-                    "-cp", "target/object-store-vertx-1.0-SNAPSHOT.jar",
+                    "-cp", "target/object-store-1.0-SNAPSHOT.jar",
                     "com.objstore.MainApp",
                     "SLAVE", newSlaveAddress
             );
